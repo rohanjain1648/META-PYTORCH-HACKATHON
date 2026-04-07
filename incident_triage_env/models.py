@@ -8,13 +8,12 @@ Defines the typed Action, Observation, and State models
 for the incident response triage environment.
 """
 
-from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from pydantic import Field
 from openenv.core.env_server.types import Action, Observation, State
 
 
-@dataclass
 class IncidentTriageAction(Action):
     """
     An action the agent can take in the incident triage environment.
@@ -47,10 +46,9 @@ class IncidentTriageAction(Action):
 
     action_type: str = ""
     target: str = ""
-    parameters: dict = field(default_factory=dict)
+    parameters: dict = Field(default_factory=dict)
 
 
-@dataclass
 class IncidentTriageObservation(Observation):
     """
     What the agent observes after each action.
@@ -59,11 +57,11 @@ class IncidentTriageObservation(Observation):
     """
 
     # Active alerts
-    alerts: list = field(default_factory=list)
+    alerts: list = Field(default_factory=list)
     # Current system health — service -> {status, cpu, memory, error_rate, latency_ms}
-    system_status: dict = field(default_factory=dict)
+    system_status: dict = Field(default_factory=dict)
     # Recent log entries
-    logs: list = field(default_factory=list)
+    logs: list = Field(default_factory=list)
     # Result from the last investigation/action
     investigation_results: str = ""
     # Simulated time elapsed (minutes) since incident start
@@ -79,7 +77,6 @@ class IncidentTriageObservation(Observation):
     max_steps: int = 0
 
 
-@dataclass
 class IncidentTriageState(State):
     """
     Internal state tracking for the environment.
@@ -102,5 +99,5 @@ class IncidentTriageState(State):
     time_elapsed: float = 0.0
     actions_taken: int = 0
     accumulated_reward: float = 0.0
-    investigations_performed: list = field(default_factory=list)
+    investigations_performed: list = Field(default_factory=list)
     done: bool = False
