@@ -8,6 +8,39 @@
 
 ---
 
+## Table of Contents
+1. [Problem Statement](#-problem-statement)
+2. [What The Platform Does](#-what-the-platform-does)
+3. [Environment Description](#-environment-description)
+4. [Tasks & Difficulty Levels](#-tasks--difficulty-levels)
+5. [System Overview](#-system-overview)
+6. [System Architecture](#️-system-architecture)
+7. [Code Structure & Reproducibility](#-code-structure--reproducibility)
+8. [Core Logic Deep Dive](#-core-logic-deep-dive)
+9. [Reward Function](#-reward-function)
+10. [Architecture Decisions](#-architecture-decisions)
+11. [Performance Optimizations](#-performance-optimizations)
+12. [Setup Instructions](#-setup-instructions)
+13. [Baseline Scores](#-baseline-scores)
+14. [API Reference](#-api-reference)
+15. [Known Limitations](#-known-limitations)
+16. [What I'd Improve With More Time](#-what-id-improve-with-more-time)
+
+---
+
+## ❓ Problem Statement
+
+Current LLMs struggle with multi-step debugging in distributed systems. When an active incident occurs in an enterprise setup, finding the root cause requires correlating metrics, logs, events, and traces across dozens of inter-dependent services. The lack of standard benchmarks and environments for this specific domain heavily hinders the development of autonomous SRE/DevOps agents.
+
+---
+
+## 💡 What The Platform Does
+
+This platform presents an AI agent with a continuous stream of realistic production alerts, system metrics, application logs, and configuration data. The agent must successfully navigate through **investigation → diagnosis → prioritization → remediation → verification** to resolve incidents. 
+It supports multiple valid investigation paths, assesses partial-credit situations (like correct diagnosis but slow remediation), and handles dynamically cascading failures with red herrings.
+
+---
+
 ## 📋 Environment Description
 
 **Incident Response Triage** simulates the work that **on-call engineers at every tech company do daily**: monitoring production alerts, diagnosing root causes, prioritizing incidents by severity, and applying fixes before outages escalate.
@@ -20,49 +53,6 @@ The environment presents the agent with realistic production alerts, system metr
 - **Rich decision-making**: Multiple valid investigation paths, priority trade-offs, cascading failures
 - **Partial-credit scenarios**: Correct diagnosis but wrong fix, correct priority but slow
 - **Meaningful difficulty progression**: From single alert to cascading multi-service failures
-
----
-
-## 🎯 Action Space
-
-The agent has **6 action types** to interact with the environment:
-
-| Action Type | Target | Parameters | Description |
-|---|---|---|---|
-| `investigate` | Service name | `{"aspect": "logs\|metrics\|connections\|config"}` | Examine a system for detailed information |
-| `diagnose` | Incident ID | `{"root_cause": "<diagnosis>"}` | Declare the root cause of an incident |
-| `prioritize` | Incident ID | `{"priority": "P1\|P2\|P3\|P4"}` | Assign severity level |
-| `remediate` | Service name | `{"action": "<fix description>"}` | Apply a fix to a service |
-| `escalate` | Incident ID | `{"team": "<team>", "reason": "<why>"}` | Escalate to specialist team |
-| `verify` | Service name | `{}` | Verify that a fix was successful |
-
-### Action JSON Format
-
-```json
-{
-  "action_type": "investigate",
-  "target": "database_primary",
-  "parameters": {"aspect": "logs"}
-}
-```
-
----
-
-## 👁️ Observation Space
-
-After each action, the agent receives:
-
-| Field | Type | Description |
-|---|---|---|
-| `alerts` | `list[dict]` | Active alerts with severity, service, title, message |
-| `system_status` | `dict` | Service health metrics (CPU, memory, error rate, latency) |
-| `investigation_results` | `str` | Detailed output from the last action |
-| `time_elapsed` | `float` | Simulated minutes since incident start |
-| `incidents_resolved` | `int` | Number of incidents fixed |
-| `incidents_remaining` | `int` | Number still active |
-| `last_action_error` | `str\|null` | Error feedback for invalid actions |
-| `current_step` | `int` | Current step number |
-| `max_steps` | `int` | Maximum steps for this task |
 
 ---
 
@@ -128,9 +118,142 @@ A database migration has locked a critical table, causing a full-stack cascade. 
 
 ---
 
+## ⚙️ System Overview
+
+The system exposes an OpenAI-compatible API mapping to a deterministic finite-state machine environment that serves interactive challenges to the agent.
+
+### 🎯 Action Space
+
+The agent has **6 action types** to interact with the environment:
+
+| Action Type | Target | Parameters | Description |
+|---|---|---|---|
+| `investigate` | Service name | `{"aspect": "logs\|metrics\|connections\|config"}` | Examine a system for detailed information |
+| `diagnose` | Incident ID | `{"root_cause": "<diagnosis>"}` | Declare the root cause of an incident |
+| `prioritize` | Incident ID | `{"priority": "P1\|P2\|P3\|P4"}` | Assign severity level |
+| `remediate` | Service name | `{"action": "<fix description>"}` | Apply a fix to a service |
+| `escalate` | Incident ID | `{"team": "<team>", "reason": "<why>"}` | Escalate to specialist team |
+| `verify` | Service name | `{}` | Verify that a fix was successful |
+
+### Action JSON Format
+
+```json
+{
+  "action_type": "investigate",
+  "target": "database_primary",
+  "parameters": {"aspect": "logs"}
+}
+```
+
+### 👁️ Observation Space
+
+After each action, the agent receives:
+
+| Field | Type | Description |
+|---|---|---|
+| `alerts` | `list[dict]` | Active alerts with severity, service, title, message |
+| `system_status` | `dict` | Service health metrics (CPU, memory, error rate, latency) |
+| `investigation_results` | `str` | Detailed output from the last action |
+| `time_elapsed` | `float` | Simulated minutes since incident start |
+| `incidents_resolved` | `int` | Number of incidents fixed |
+| `incidents_remaining` | `int` | Number still active |
+| `last_action_error` | `str\|null` | Error feedback for invalid actions |
+| `current_step` | `int` | Current step number |
+| `max_steps` | `int` | Maximum steps for this task |
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    A[Agent / LLM] -->|HTTP POST /step, /reset| B
+    B[FastAPI Server] -->|Action JSON| C[IncidentTriageEnv]
+    
+    subgraph Environment Core
+    C --> D[Scenario Generator]
+    C --> E[State Manager]
+    C --> F[Reward Engine]
+    C --> G[Task Graders]
+    end
+    
+    F -.->|Dense Rewards| C
+    E -.->|Observations| B
+    B -.->|Response| A
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+```text
+┌──────────────────────────┐
+│     Agent / LLM          │
+│  (OpenAI API Client)     │
+└──────────┬───────────────┘
+           │ HTTP (POST /step, /reset)
+           ▼
+┌──────────────────────────┐
+│   FastAPI Server         │
+│   (app.py)               │
+│   ├── /reset             │
+│   ├── /step              │
+│   ├── /state             │
+│   └── /health            │
+└──────────┬───────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│  IncidentTriageEnv       │
+│  (incident_environment)  │
+│  ├── Scenarios           │
+│  ├── Reward Engine       │
+│  └── Task Graders        │
+└──────────────────────────┘
+```
+
+The architecture strictly follows the OpenEnv specification, utilizing a thin HTTP API layer (FastAPI) wrapped around a highly decoupled Domain Logic core.
+
+---
+
+## 📁 Code Structure & Reproducibility
+
+**Reproducibility**: The repository is containerized from day one. Both the environment server and the base inference evaluations can be perfectly replicated using the provided standard `Dockerfile`.
+
+### Project Structure
+```text
+META-PYTORCH-HACKATHON/
+├── inference.py                          # Baseline inference script (root)
+├── Dockerfile                            # Container definition (root)
+└── incident_triage_env/
+    ├── __init__.py                       # Package exports
+    ├── models.py                         # Action, Observation, State models
+    ├── client.py                         # HTTP client
+    ├── scenarios.py                      # Incident scenario data
+    ├── reward.py                         # Reward computation engine
+    ├── tasks.py                          # Task definitions + graders
+    ├── openenv.yaml                      # OpenEnv manifest
+    ├── pyproject.toml                    # Dependencies
+    └── server/
+        ├── __init__.py
+        ├── incident_environment.py       # Core environment logic
+        ├── app.py                        # FastAPI application
+        └── Dockerfile                    # Standalone container
+```
+
+---
+
+## 🧠 Core Logic Deep Dive
+
+The environment operates as a responsive **State Machine**. Each `step` transitions the incident state through logic defined natively in `incident_environment.py`. 
+
+- **Grading Engine**: Instead of relying purely on sparse boolean rewards, the final score grade uses a weighted matrix integrating **time efficiency**, **resolution accuracy**, **dynamic prioritization correctness**, and the proper identification of connected system components (handling correlations and ignoring red herrings).
+
+---
+
 ## 🏆 Reward Function
 
-The environment provides **dense, per-step reward signals** (not just sparse end-of-episode):
+The environment provides **dense, per-step reward signals** (not just sparse end-of-episode) to optimize trajectory evaluation.
 
 ### Positive Rewards
 | Action | Reward |
@@ -156,7 +279,22 @@ The environment provides **dense, per-step reward signals** (not just sparse end
 
 ---
 
-## 🚀 Setup & Usage
+## ⚖️ Architecture Decisions
+
+1. **Pydantic Validation**: Used heavily in `models.py` to ensure that standard OpenAPI specifications map flawlessly to internal Python primitives.
+2. **Deterministic Scenarios**: Scenarios use fixed seeds to ensure standard baseline comparisons. Agents face the same issues every time to guarantee reproducibility.
+3. **Stateless HTTP API with Internal State**: Following the standard reinforcement learning architecture, the `FastAPI` instance tracks global episode history in-memory allowing lightweight local iterations.
+
+---
+
+## ⚡ Performance Optimizations
+
+*   **In-Memory Tracking**: Eliminated arbitrary database overhead by keeping episode histories completely in-memory, leading to incredibly low-latency trajectory feedback loops (~2ms response times).
+*   **Targeted Matching Strategies**: Leveraging highly optimized regular expressions combined with structured dictionary mapping to check fix correctness, avoiding the latency and compute cost of an integrated LLM-as-a-judge system on every single action.
+
+---
+
+## 🚀 Setup Instructions
 
 ### Prerequisites
 
@@ -224,30 +362,6 @@ Baseline performance using `Qwen/Qwen2.5-72B-Instruct`:
 
 ---
 
-## 📁 Project Structure
-
-```
-META-PYTORCH-HACKATHON/
-├── inference.py                          # Baseline inference script (root)
-├── Dockerfile                            # Container definition (root)
-└── incident_triage_env/
-    ├── __init__.py                       # Package exports
-    ├── models.py                         # Action, Observation, State models
-    ├── client.py                         # HTTP client
-    ├── scenarios.py                      # Incident scenario data
-    ├── reward.py                         # Reward computation engine
-    ├── tasks.py                          # Task definitions + graders
-    ├── openenv.yaml                      # OpenEnv manifest
-    ├── pyproject.toml                    # Dependencies
-    └── server/
-        ├── __init__.py
-        ├── incident_environment.py       # Core environment logic
-        ├── app.py                        # FastAPI application
-        └── Dockerfile                    # Standalone container
-```
-
----
-
 ## 🔧 API Reference
 
 ### `POST /reset`
@@ -276,33 +390,18 @@ Get the final grade for the current episode.
 
 ---
 
-## 🏗️ Architecture
+## 🛑 Known Limitations
 
-```
-┌──────────────────────────┐
-│     Agent / LLM          │
-│  (OpenAI API Client)     │
-└──────────┬───────────────┘
-           │ HTTP (POST /step, /reset)
-           ▼
-┌──────────────────────────┐
-│   FastAPI Server         │
-│   (app.py)               │
-│   ├── /reset             │
-│   ├── /step              │
-│   ├── /state             │
-│   └── /health            │
-└──────────┬───────────────┘
-           │
-           ▼
-┌──────────────────────────┐
-│  IncidentTriageEnv       │
-│  (incident_environment)  │
-│  ├── Scenarios           │
-│  ├── Reward Engine       │
-│  └── Task Graders        │
-└──────────────────────────┘
-```
+*   **Concurrency limits**: Support for massive parallel concurrent episodic executions natively across multi-threaded operations requires a local distributed state enhancement.
+*   **Generative telemetry**: Logs and metrics responses use comprehensive parameterized templates rather than relying strictly on an LLM to dynamically generate endless unique logs on-the-fly, due to local latency requirements.
+
+---
+
+## 🔮 What I'd Improve With More Time
+
+1. **LLM-as-a-Judge Evaluation**: Implement smaller-scale LLMs for the semantic validation of unstructured `remediation` descriptions to account for variations in developer code fixing patterns.
+2. **Multi-Agent Simulation Options**: Introduce the ability for the active responder agent to dynamically delegate sub-tasks to autonomous secondary sub-agents (e.g. escalating to a DBA agent).
+3. **State Persistence**: Plug in natively configured Redis or SQLite adapters to support crash-resumes and infinite horizontal trajectory scaling capabilities for intense scale evaluations.
 
 ---
 
