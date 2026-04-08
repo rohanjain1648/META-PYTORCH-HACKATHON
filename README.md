@@ -1,3 +1,14 @@
+---
+title: Incident Response Triage
+emoji: 🚨
+colorFrom: red
+colorTo: orange
+sdk: docker
+pinned: false
+tags:
+  - openenv
+---
+
 # 🚨 Incident Triage Environment
 
 > An OpenEnv-compliant environment simulating **real-world IT/DevOps incident response triage** — where an AI agent acts as an on-call engineer handling production incidents.
