@@ -2,8 +2,9 @@
 title: Incident Response Triage
 emoji: 🚨
 colorFrom: red
-colorTo: orange
+colorTo: yellow
 sdk: docker
+app_port: 8000
 pinned: false
 tags:
   - openenv
