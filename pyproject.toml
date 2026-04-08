@@ -30,7 +30,7 @@ dev = [
 ]
 
 [project.scripts]
-server = "incident_triage_env.server.app:main"
+server = "server.app:main"
 
 [tool.setuptools]
 include-package-data = true
