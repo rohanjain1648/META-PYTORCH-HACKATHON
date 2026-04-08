@@ -37,12 +37,16 @@ from openai import OpenAI
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or ""
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+# From hackathon checklist: Defaults only for API_BASE_URL and MODEL_NAME
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+# Optional - for local image testing
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 # Environment configuration
-ENV_BASE_URL = os.getenv("ENV_BASE_URL") or "http://localhost:8000"
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:8000")
 BENCHMARK = "incident_triage_env"
 
 # Tasks to run: easy → medium → hard
@@ -353,7 +357,7 @@ def main():
     print(f"[DEBUG] Starting inference with model={MODEL_NAME}, env={ENV_BASE_URL}", flush=True)
 
     # Initialize LLM client
-    llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
     # Initialize environment client
     env_client = EnvClient(ENV_BASE_URL)
