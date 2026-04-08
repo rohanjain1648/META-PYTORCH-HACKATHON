@@ -333,7 +333,7 @@ def run_task(llm_client: OpenAI, env_client: EnvClient, task_config: dict) -> di
             # Fall back to accumulated rewards
             score = sum(max(r, 0) for r in rewards) / max(sum(abs(r) for r in rewards), 1.0) if rewards else 0.0
 
-        score = max(0.0, min(1.0, score))
+        score = max(0.01, min(0.99, score))
         success = score >= 0.1
 
     except Exception as e:

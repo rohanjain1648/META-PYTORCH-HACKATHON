@@ -137,7 +137,7 @@ class TaskGrader:
                 - feedback: list of human-readable feedback strings
         """
         score = compute_final_score(scenario, state, self.task_name)
-        score = max(0.0, min(1.0, score))  # Clamp to [0, 1]
+        score = max(0.01, min(0.99, score))  # Clamp to (0, 1) strictly
 
         breakdown = self._compute_breakdown(scenario, state)
         feedback = self._generate_feedback(scenario, state, breakdown)
